@@ -10,12 +10,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
-// NEW: Add this for the folder dialog
 using Microsoft.Win32;
 
 namespace AppleMusicProcessManager
 {
-    // 定义日志级别枚举和日志条目记录
     public enum LogLevel
     {
         DEBUG,
@@ -29,19 +27,11 @@ namespace AppleMusicProcessManager
 
     public partial class MainWindow : Window
     {
-        // =============================================================
-        // MODIFICATION: Fix nullable warnings by adding '?'
-        // =============================================================
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _wrapperProcess;
         private Process? _amdProcess;
-
-        // =============================================================
-        // NEW: Add a field to store the selected directory
-        // =============================================================
         private string? _baseDirectory;
 
-        // 用于存储所有日志，以便重新过滤
         private readonly List<LogEntry> _wrapperLogEntries = new();
         private readonly List<LogEntry> _amdLogEntries = new();
 
@@ -54,42 +44,28 @@ namespace AppleMusicProcessManager
         {
             UpdateStatus("Application closing, terminating all child processes...");
             _cancellationTokenSource?.Cancel();
-            KillProcess(_wrapperProcess);
-            KillProcess(_amdProcess);
+            KillProcessesAndCleanupWSL();
         }
 
-        // =============================================================
-        // NEW: Click event handler for the "Select Directory" button
-        // =============================================================
         private void SelectDirectoryButton_Click(object sender, RoutedEventArgs e)
         {
-            var openFolderDialog = new OpenFolderDialog
-            {
-                Title = "请选择 AMD-V2-WSL1 项目的根目录",
-                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-            };
-
+            var openFolderDialog = new OpenFolderDialog { Title = "请选择 AMD-V2-WSL1 项目的根目录" };
             if (openFolderDialog.ShowDialog() == true)
             {
                 string selectedPath = openFolderDialog.FolderName;
-
-                // Validate the selected directory
                 if (Directory.Exists(Path.Combine(selectedPath, "wsl1")) &&
                     Directory.Exists(Path.Combine(selectedPath, "AppleMusicDecrypt")) &&
                     File.Exists(Path.Combine(selectedPath, "artists.txt")))
                 {
                     _baseDirectory = selectedPath;
                     DirectoryPathTextBox.Text = _baseDirectory;
-                    StartButton.IsEnabled = true; // Enable the start button
+                    StartButton.IsEnabled = true;
                     UpdateStatus($"工作目录已设置为: {_baseDirectory}");
                 }
                 else
                 {
-                    MessageBox.Show(
-                        "选择的目录无效。\n\n请确保所选目录中包含 'wsl1' 文件夹、'AppleMusicDecrypt' 文件夹和 'artists.txt' 文件。",
-                        "目录错误",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    MessageBox.Show("选择的目录无效。\n\n请确保所选目录中包含 'wsl1' 文件夹、'AppleMusicDecrypt' 文件夹和 'artists.txt' 文件。",
+                        "目录错误", MessageBoxButton.OK, MessageBoxImage.Error);
                     StartButton.IsEnabled = false;
                 }
             }
@@ -97,13 +73,11 @@ namespace AppleMusicProcessManager
 
         private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            // Disable buttons during processing
             StartButton.IsEnabled = false;
             SelectDirectoryButton.IsEnabled = false;
+            StopButton.IsEnabled = true;
             StartButton.Content = "处理中...";
-
             _cancellationTokenSource = new CancellationTokenSource();
-
             try
             {
                 await RunWorkflow(_cancellationTokenSource.Token);
@@ -120,18 +94,32 @@ namespace AppleMusicProcessManager
             }
             finally
             {
-                // Restore button states
                 StartButton.IsEnabled = true;
                 SelectDirectoryButton.IsEnabled = true;
+                StopButton.IsEnabled = false;
                 StartButton.Content = "开始处理";
+            }
+        }
+
+        // =============================================
+        // ADD THIS NEW METHOD
+        // =============================================
+        private void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+            {
+                // Log the user's action to provide feedback
+                LogToWrapper("用户请求终止操作...");
+                LogToAmd("用户请求终止操作...");
+
+                // Cancel the token. This will cause the await calls in RunWorkflow 
+                // to throw an OperationCanceledException, which is caught and handled.
+                _cancellationTokenSource.Cancel();
             }
         }
 
         private async Task RunWorkflow(CancellationToken token)
         {
-            // =============================================================
-            // MODIFICATION: Use the _baseDirectory field
-            // =============================================================
             if (string.IsNullOrEmpty(_baseDirectory))
             {
                 UpdateStatus("错误: 工作目录未设置。");
@@ -140,7 +128,6 @@ namespace AppleMusicProcessManager
 
             string mainArtistsFile = Path.Combine(_baseDirectory, "artists.txt");
             string targetArtistsFile = Path.Combine(_baseDirectory, "AppleMusicDecrypt", "artists.txt");
-
             if (!File.Exists(mainArtistsFile))
             {
                 UpdateStatus($"错误: 在 '{_baseDirectory}' 中找不到 artists.txt 文件。");
@@ -153,19 +140,15 @@ namespace AppleMusicProcessManager
                 token.ThrowIfCancellationRequested();
                 string artist = artists[i];
                 if (string.IsNullOrWhiteSpace(artist)) continue;
-
                 UpdateStatus($"正在处理第 {i + 1}/{artists.Length} 位艺术家: {artist}");
-
                 bool success = false;
                 while (!success && !token.IsCancellationRequested)
                 {
                     await File.WriteAllTextAsync(targetArtistsFile, artist, token);
                     LogToWrapper($"已将 '{artist}' 写入目标 artists.txt。");
                     LogToAmd($"准备处理 '{artist}'。");
-
                     success = await RunAndMonitorProcesses(_baseDirectory, token);
-
-                    if (!success)
+                    if (!success && !token.IsCancellationRequested)
                     {
                         UpdateStatus($"艺术家 '{artist}' 的任务失败，将在 5 秒后重试...");
                         await Task.Delay(5000, token);
@@ -177,7 +160,6 @@ namespace AppleMusicProcessManager
                 {
                     UpdateStatus($"艺术家 '{artist}' 的任务已完成。等待 60 秒...");
                     await Task.Delay(60000, token);
-
                     await File.WriteAllTextAsync(targetArtistsFile, string.Empty, token);
                     LogToWrapper($"已清空目标 artists.txt 为下一次运行做准备。");
                     LogToAmd($"准备处理下一位艺术家。");
@@ -189,10 +171,20 @@ namespace AppleMusicProcessManager
         {
             var tcs = new TaskCompletionSource<bool>();
 
+            // 当进程意外退出时触发
+            void Process_Exited(object? sender, EventArgs e)
+            {
+                var process = sender as Process;
+                // 使用 Dispatcher 来安全地记录日志，避免跨线程问题
+                Dispatcher.Invoke(() => LogToWrapper($"进程 {process?.StartInfo.FileName} (PID: {process?.Id}) 意外退出。"));
+                tcs.TrySetResult(false);
+            }
+
             using var ctr = token.Register(() => tcs.TrySetCanceled());
 
             try
             {
+                // --- Wrapper 进程设置 ---
                 var wrapperStartInfo = new ProcessStartInfo
                 {
                     FileName = Path.Combine(baseDirectory, "wsl1", "LxRunOffline.exe"),
@@ -206,6 +198,7 @@ namespace AppleMusicProcessManager
                 };
 
                 _wrapperProcess = new Process { StartInfo = wrapperStartInfo, EnableRaisingEvents = true };
+                _wrapperProcess.Exited += Process_Exited;
 
                 _wrapperProcess.OutputDataReceived += (s, e) =>
                 {
@@ -229,6 +222,7 @@ namespace AppleMusicProcessManager
                 _wrapperProcess.BeginErrorReadLine();
                 LogToWrapper($"WrapperManager 进程已启动 (PID: {_wrapperProcess.Id}).");
 
+                // --- AMD 进程设置 ---
                 var amdStartInfo = new ProcessStartInfo
                 {
                     FileName = Path.Combine(baseDirectory, "wsl1", "LxRunOffline.exe"),
@@ -243,6 +237,7 @@ namespace AppleMusicProcessManager
                 };
 
                 _amdProcess = new Process { StartInfo = amdStartInfo, EnableRaisingEvents = true };
+                _amdProcess.Exited += Process_Exited;
 
                 _amdProcess.OutputDataReceived += (s, e) =>
                 {
@@ -269,11 +264,12 @@ namespace AppleMusicProcessManager
             }
             finally
             {
-                KillProcess(_wrapperProcess);
-                _wrapperProcess = null;
+                // 在 finally 块中安全地取消事件订阅
+                if (_wrapperProcess != null) _wrapperProcess.Exited -= Process_Exited;
+                if (_amdProcess != null) _amdProcess.Exited -= Process_Exited;
 
-                KillProcess(_amdProcess);
-                _amdProcess = null;
+                // 调用我们强大的清理方法
+                KillProcessesAndCleanupWSL();
             }
         }
 
@@ -284,31 +280,69 @@ namespace AppleMusicProcessManager
             {
                 if (!process.HasExited)
                 {
-                    LogToWrapper($"正在终止进程树 (PID: {process.Id})");
+                    LogToWrapper($"Terminating process tree for PID: {process.Id}");
                     process.Kill(true);
                 }
             }
             catch (InvalidOperationException)
             {
-                /* 进程未启动或已退出，忽略 */
+                /* Ignore */
             }
             catch (Exception ex)
             {
-                UpdateStatus($"终止进程失败: {ex.Message}");
+                UpdateStatus($"Failed to kill process: {ex.Message}");
+            }
+        }
+
+        private void KillProcessesAndCleanupWSL()
+        {
+            if (string.IsNullOrEmpty(_baseDirectory))
+            {
+                // If no directory was ever selected, there are no WSL processes to clean up.
+                // Just perform the standard in-memory process handle cleanup and exit gracefully.
+                KillProcess(_wrapperProcess);
+                _wrapperProcess = null;
+                KillProcess(_amdProcess);
+                _amdProcess = null;
+                return;
+            }
+
+            KillProcess(_wrapperProcess);
+            _wrapperProcess = null;
+            KillProcess(_amdProcess);
+            _amdProcess = null;
+
+            try
+            {
+                if (string.IsNullOrEmpty(_baseDirectory)) return;
+                LogToWrapper("Forcefully cleaning up any lingering processes inside WSL...");
+                string cleanupCommand = "pkill -f 'wrapper-manager'; pkill -f 'python3 main.py'";
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = Path.Combine(_baseDirectory, "wsl1", "LxRunOffline.exe"),
+                    Arguments = $"r -n deb-amd -c \"{cleanupCommand}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var cleanupProcess = Process.Start(processInfo);
+                cleanupProcess?.WaitForExit(5000);
+                LogToWrapper("WSL cleanup command executed.");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"WSL cleanup failed: {ex.Message}");
             }
         }
 
         #region UI Update Helpers and Log Management
 
+        // ... (This entire region of code remains unchanged)
         private void Filter_Changed(object sender, RoutedEventArgs e)
         {
             RefreshLogs(WrapperLogRtb, _wrapperLogEntries, GetWrapperFilterState());
             RefreshLogs(AmdLogRtb, _amdLogEntries, GetAmdFilterState());
         }
 
-        // =============================================================
-        // NEW: Overload for TextBox's TextChanged event
-        // =============================================================
         private void Filter_Changed_TextBox(object sender, TextChangedEventArgs e)
         {
             RefreshLogs(WrapperLogRtb, _wrapperLogEntries, GetWrapperFilterState());
@@ -322,11 +356,8 @@ namespace AppleMusicProcessManager
                 return new LogEntry(line, LogLevel.ERROR, Brushes.Red);
             if (upperLine.Contains("WARNING") || upperLine.Contains("WARN"))
                 return new LogEntry(line, LogLevel.WARNING, Brushes.Orange);
-            if (upperLine.Contains("DEBUG"))
-                return new LogEntry(line, LogLevel.DEBUG, Brushes.Gray);
-            if (upperLine.Contains("INFO"))
-                return new LogEntry(line, LogLevel.INFO, Brushes.DodgerBlue);
-
+            if (upperLine.Contains("DEBUG")) return new LogEntry(line, LogLevel.DEBUG, Brushes.Gray);
+            if (upperLine.Contains("INFO")) return new LogEntry(line, LogLevel.INFO, Brushes.DodgerBlue);
             return new LogEntry(line, LogLevel.OTHER, SystemColors.WindowTextBrush);
         }
 
@@ -348,7 +379,6 @@ namespace AppleMusicProcessManager
             }
             catch (TaskCanceledException)
             {
-                /* 忽略关闭时的异常 */
             }
         }
 
@@ -370,17 +400,13 @@ namespace AppleMusicProcessManager
             }
             catch (TaskCanceledException)
             {
-                /* 忽略关闭时的异常 */
             }
         }
 
         private void AppendToRichTextBox(RichTextBox rtb, LogEntry logEntry)
         {
             var paragraph = new Paragraph(new Run(logEntry.Message))
-            {
-                Foreground = logEntry.Color,
-                Margin = new Thickness(0)
-            };
+                { Foreground = logEntry.Color, Margin = new Thickness(0) };
             rtb.Document.Blocks.Add(paragraph);
             rtb.ScrollToEnd();
         }
@@ -396,12 +422,8 @@ namespace AppleMusicProcessManager
 
             return entry.Level switch
             {
-                LogLevel.INFO => filter.info,
-                LogLevel.WARNING => filter.warn,
-                LogLevel.ERROR => filter.err,
-                LogLevel.DEBUG => filter.dbg,
-                LogLevel.OTHER => filter.oth,
-                _ => true
+                LogLevel.INFO => filter.info, LogLevel.WARNING => filter.warn, LogLevel.ERROR => filter.err,
+                LogLevel.DEBUG => filter.dbg, LogLevel.OTHER => filter.oth, _ => true
             };
         }
 
@@ -419,10 +441,7 @@ namespace AppleMusicProcessManager
                         if (ShouldDisplay(entry, filter))
                         {
                             var paragraph = new Paragraph(new Run(entry.Message))
-                            {
-                                Foreground = entry.Color,
-                                Margin = new Thickness(0)
-                            };
+                                { Foreground = entry.Color, Margin = new Thickness(0) };
                             rtb.Document.Blocks.Add(paragraph);
                         }
                     }
@@ -432,18 +451,16 @@ namespace AppleMusicProcessManager
             }
             catch (TaskCanceledException)
             {
-                /* 忽略 */
             }
         }
 
-        private (bool, bool, bool, bool, bool, string) GetWrapperFilterState() =>
-            (WrapperShowInfo.IsChecked == true, WrapperShowWarning.IsChecked == true,
-                WrapperShowError.IsChecked == true,
-                WrapperShowDebug.IsChecked == true, WrapperShowOther.IsChecked == true, WrapperKeywordFilter.Text);
+        private (bool, bool, bool, bool, bool, string) GetWrapperFilterState() => (WrapperShowInfo.IsChecked == true,
+            WrapperShowWarning.IsChecked == true, WrapperShowError.IsChecked == true,
+            WrapperShowDebug.IsChecked == true, WrapperShowOther.IsChecked == true, WrapperKeywordFilter.Text);
 
-        private (bool, bool, bool, bool, bool, string) GetAmdFilterState() =>
-            (AmdShowInfo.IsChecked == true, AmdShowWarning.IsChecked == true, AmdShowError.IsChecked == true,
-                AmdShowDebug.IsChecked == true, AmdShowOther.IsChecked == true, AmdKeywordFilter.Text);
+        private (bool, bool, bool, bool, bool, string) GetAmdFilterState() => (AmdShowInfo.IsChecked == true,
+            AmdShowWarning.IsChecked == true, AmdShowError.IsChecked == true, AmdShowDebug.IsChecked == true,
+            AmdShowOther.IsChecked == true, AmdKeywordFilter.Text);
 
         private void ClearLogs()
         {
@@ -460,7 +477,6 @@ namespace AppleMusicProcessManager
             }
             catch (TaskCanceledException)
             {
-                /* 忽略 */
             }
         }
 
@@ -473,7 +489,6 @@ namespace AppleMusicProcessManager
             }
             catch (TaskCanceledException)
             {
-                /* 忽略 */
             }
         }
 
