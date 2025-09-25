@@ -29,13 +29,14 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBox x:Name="DirectoryPathTextBox" Grid.Column="0" IsReadOnly="True" Text="请点击 '选择目录' 按钮..." VerticalContentAlignment="Center"/>
                     <Button x:Name="SelectDirectoryButton" Grid.Column="1" Content="选择目录..." Width="120" Margin="10,0,10,0" Click="SelectDirectoryButton_Click"/>
                     <!-- IsEnabled is initially false -->
                     <Button x:Name="StartButton" Grid.Column="2" Content="开始处理" Width="120" IsEnabled="False" Click="StartButton_Click"/>
-                    <Button x:Name="StopButton" Grid.Column="3" Content="终止" Width="80" IsEnabled="False" Margin="10,0,0,0" Background="#FFE81123" Foreground="White" Click="StopButton_Click"/>
+                    <Button x:Name="StopButton" Grid.Column="3" Content="终止" Width="80" IsEnabled="False" Margin="10,0,0,0" Background="#FFE81123"  Click="StopButton_Click"/>
                 </Grid>
             </StackPanel>
         </Border>
