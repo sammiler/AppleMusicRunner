@@ -77,7 +77,12 @@ namespace AppleMusicProcessManager
 
         private async Task RunWorkflow(CancellationToken token)
         {
+#if DEBUG
             string baseDirectory = Environment.CurrentDirectory;
+
+#else
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+#endif
             string mainArtistsFile = Path.Combine(baseDirectory, "artists.txt");
             string targetArtistsFile = Path.Combine(baseDirectory, "AppleMusicDecrypt", "artists.txt");
 
