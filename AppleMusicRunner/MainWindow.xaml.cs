@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -6,14 +7,33 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace AppleMusicProcessManager
 {
+    // 定义日志级别枚举和日志条目记录
+    public enum LogLevel
+    {
+        DEBUG,
+        INFO,
+        WARNING,
+        ERROR,
+        OTHER
+    }
+
+    public record LogEntry(string Message, LogLevel Level, Brush Color);
+
     public partial class MainWindow : Window
     {
         private CancellationTokenSource _cancellationTokenSource;
         private Process _wrapperProcess;
         private Process _amdProcess;
+
+        // 用于存储所有日志，以便重新过滤
+        private readonly List<LogEntry> _wrapperLogEntries = new();
+        private readonly List<LogEntry> _amdLogEntries = new();
 
         public MainWindow()
         {
@@ -218,75 +238,195 @@ namespace AppleMusicProcessManager
             }
         }
 
-        #region UI Update Helpers
+        #region UI Update Helpers and Log Management
+
+        // 主事件处理器，当任何过滤条件改变时调用
+        private void Filter_Changed(object sender, RoutedEventArgs e)
+        {
+            RefreshLogs(WrapperLogRtb, _wrapperLogEntries, GetWrapperFilterState());
+            RefreshLogs(AmdLogRtb, _amdLogEntries, GetAmdFilterState());
+        }
+
+        // 日志解析和颜色确定
+        private LogEntry ParseLogLine(string line)
+        {
+            var upperLine = line.ToUpperInvariant(); // Use InvariantCulture for case-insensitive comparisons
+            if (upperLine.Contains("ERROR") || upperLine.Contains("FATAL") || upperLine.Contains("CRITICAL"))
+                return new LogEntry(line, LogLevel.ERROR, Brushes.Red);
+            if (upperLine.Contains("WARNING") || upperLine.Contains("WARN"))
+                return new LogEntry(line, LogLevel.WARNING, Brushes.Orange);
+            if (upperLine.Contains("DEBUG"))
+                return new LogEntry(line, LogLevel.DEBUG, Brushes.Gray);
+            if (upperLine.Contains("INFO"))
+                return new LogEntry(line, LogLevel.INFO, Brushes.DodgerBlue);
+            return new LogEntry(line, LogLevel.OTHER, SystemColors.WindowTextBrush);
+        }
+
 
         private void LogToWrapper(string message)
         {
-            // 第一次检查，可以避免在大多数情况下进入 try-catch 块，略微提高性能
-            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+            // 在后台线程上执行无 UI 依赖的解析工作
+            var logEntry = ParseLogLine(message);
 
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
             try
             {
+                // 将所有 UI 交互和共享集合的修改都放入 UI 线程
                 Dispatcher.Invoke(() =>
                 {
-                    WrapperLogTextBox.AppendText(message + Environment.NewLine);
-                    WrapperLogTextBox.ScrollToEnd();
+                    _wrapperLogEntries.Add(logEntry);
+
+                    var filter = GetWrapperFilterState(); // 现在在 UI 线程上读取，安全
+                    if (ShouldDisplay(logEntry, filter))
+                    {
+                        AppendToRichTextBox(WrapperLogRtb, logEntry); // 调用更新 UI 的方法
+                    }
                 });
             }
             catch (TaskCanceledException)
             {
-                // 当 Dispatcher 在 Invoke 调用期间关闭时，会发生此异常。
-                // 这是正常的关闭行为，可以安全地忽略。
+                /* 忽略关闭时的异常 */
             }
         }
 
         private void LogToAmd(string message)
         {
-            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+            // 在后台线程上执行无 UI 依赖的解析工作
+            var logEntry = ParseLogLine(message);
 
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
             try
             {
+                // 将所有 UI 交互和共享集合的修改都放入 UI 线程
                 Dispatcher.Invoke(() =>
                 {
-                    AmdLogTextBox.AppendText(message + Environment.NewLine);
-                    AmdLogTextBox.ScrollToEnd();
+                    _amdLogEntries.Add(logEntry);
+
+                    var filter = GetAmdFilterState(); // 现在在 UI 线程上读取，安全
+                    if (ShouldDisplay(logEntry, filter))
+                    {
+                        AppendToRichTextBox(AmdLogRtb, logEntry);
+                    }
                 });
             }
             catch (TaskCanceledException)
             {
-                // 忽略在关闭期间发生的预期异常
+                /* 忽略关闭时的异常 */
+            }
+        }
+
+        // 将带颜色的日志附加到 RichTextBox
+
+        private void AppendToRichTextBox(RichTextBox rtb, LogEntry logEntry)
+        {
+            // 此方法现在假定它总是在 UI 线程上被调用
+            var paragraph = new Paragraph(new Run(logEntry.Message))
+            {
+                Foreground = logEntry.Color,
+                Margin = new Thickness(0) // 紧凑显示
+            };
+            rtb.Document.Blocks.Add(paragraph);
+            rtb.ScrollToEnd();
+        }
+
+        // 核心过滤逻辑
+        private bool ShouldDisplay(LogEntry entry,
+            (bool info, bool warn, bool err, bool dbg, bool oth, string keyword) filter)
+        {
+            // 关键字过滤
+            if (!string.IsNullOrEmpty(filter.keyword) &&
+                !entry.Message.Contains(filter.keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // 级别过滤
+            return entry.Level switch
+            {
+                LogLevel.INFO => filter.info,
+                LogLevel.WARNING => filter.warn,
+                LogLevel.ERROR => filter.err,
+                LogLevel.DEBUG => filter.dbg,
+                LogLevel.OTHER => filter.oth,
+                _ => true
+            };
+        }
+
+        // 刷新整个日志视图
+        private void RefreshLogs(RichTextBox rtb, List<LogEntry> source,
+            (bool info, bool warn, bool err, bool dbg, bool oth, string keyword) filter)
+        {
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    rtb.Document.Blocks.Clear();
+                    foreach (var entry in source)
+                    {
+                        if (ShouldDisplay(entry, filter))
+                        {
+                            var paragraph = new Paragraph(new Run(entry.Message))
+                            {
+                                Foreground = entry.Color,
+                                Margin = new Thickness(0)
+                            };
+                            rtb.Document.Blocks.Add(paragraph);
+                        }
+                    }
+
+                    rtb.ScrollToEnd();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                /* 忽略 */
+            }
+        }
+
+        // 辅助方法获取当前过滤状态
+        private (bool, bool, bool, bool, bool, string) GetWrapperFilterState() =>
+            (WrapperShowInfo.IsChecked == true, WrapperShowWarning.IsChecked == true,
+                WrapperShowError.IsChecked == true,
+                WrapperShowDebug.IsChecked == true, WrapperShowOther.IsChecked == true, WrapperKeywordFilter.Text);
+
+        private (bool, bool, bool, bool, bool, string) GetAmdFilterState() =>
+            (AmdShowInfo.IsChecked == true, AmdShowWarning.IsChecked == true, AmdShowError.IsChecked == true,
+                AmdShowDebug.IsChecked == true, AmdShowOther.IsChecked == true, AmdKeywordFilter.Text);
+
+
+        // 清空日志
+        private void ClearLogs()
+        {
+            // 清空数据源和 UI
+            _wrapperLogEntries.Clear();
+            _amdLogEntries.Clear();
+
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    WrapperLogRtb.Document.Blocks.Clear();
+                    AmdLogRtb.Document.Blocks.Clear();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                /* 忽略 */
             }
         }
 
         private void UpdateStatus(string message)
         {
             if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
-
             try
             {
                 Dispatcher.Invoke(() => { StatusTextBlock.Text = message; });
             }
             catch (TaskCanceledException)
             {
-                // 忽略在关闭期间发生的预期异常
-            }
-        }
-
-        private void ClearLogs()
-        {
-            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
-
-            try
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    WrapperLogTextBox.Clear();
-                    AmdLogTextBox.Clear();
-                });
-            }
-            catch (TaskCanceledException)
-            {
-                // 忽略在关闭期间发生的预期异常
+                /* 忽略 */
             }
         }
 

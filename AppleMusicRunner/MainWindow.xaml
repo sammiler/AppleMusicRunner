@@ -24,9 +24,27 @@
             <!-- 左侧日志: WrapperManager -->
             <DockPanel Grid.Column="0">
                 <TextBlock DockPanel.Dock="Top" Text="WrapperManager Log" FontWeight="Bold" Margin="0,0,0,5"/>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <TextBox x:Name="WrapperLogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
-                </ScrollViewer>
+
+                <!-- NEW: Filter Controls -->
+                <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1" Padding="5" Margin="0,0,0,5">
+                    <StackPanel>
+                        <TextBlock Text="Filter by Level:"/>
+                        <WrapPanel Margin="0,5,0,5">
+                            <CheckBox x:Name="WrapperShowInfo" Content="INFO" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="WrapperShowWarning" Content="WARNING" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="WrapperShowError" Content="ERROR" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="WrapperShowDebug" Content="DEBUG" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="WrapperShowOther" Content="Other" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                        </WrapPanel>
+                        <TextBlock Text="Filter by Keyword:"/>
+                        <TextBox x:Name="WrapperKeywordFilter" TextChanged="Filter_Changed" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- UPDATED: TextBox -> RichTextBox -->
+                <RichTextBox x:Name="WrapperLogRtb" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas">
+                    <FlowDocument/>
+                </RichTextBox>
             </DockPanel>
 
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
@@ -34,9 +52,27 @@
             <!-- 右侧日志: AMD-V2 -->
             <DockPanel Grid.Column="2">
                 <TextBlock DockPanel.Dock="Top" Text="AMD-V2 Log" FontWeight="Bold" Margin="0,0,0,5"/>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <TextBox x:Name="AmdLogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
-                </ScrollViewer>
+
+                <!-- NEW: Filter Controls -->
+                <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1" Padding="5" Margin="0,0,0,5">
+                    <StackPanel>
+                        <TextBlock Text="Filter by Level:"/>
+                        <WrapPanel Margin="0,5,0,5">
+                            <CheckBox x:Name="AmdShowInfo" Content="INFO" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="AmdShowWarning" Content="WARNING" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="AmdShowError" Content="ERROR" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="AmdShowDebug" Content="DEBUG" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                            <CheckBox x:Name="AmdShowOther" Content="Other" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
+                        </WrapPanel>
+                        <TextBlock Text="Filter by Keyword:"/>
+                        <TextBox x:Name="AmdKeywordFilter" TextChanged="Filter_Changed" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- UPDATED: TextBox -> RichTextBox -->
+                <RichTextBox x:Name="AmdLogRtb" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas">
+                    <FlowDocument/>
+                </RichTextBox>
             </DockPanel>
         </Grid>
 
