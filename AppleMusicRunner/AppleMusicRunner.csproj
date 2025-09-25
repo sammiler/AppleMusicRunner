@@ -7,11 +7,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <BaseOutputPath></BaseOutputPath>
-    <PackageOutputPath>$(OutputPath</PackageOutputPath>
+    <PackageOutputPath>$(OutputPath)</PackageOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Management" Version="9.0.9" />
   </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    
+    <!-- 1. 打包成单个文件 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    
+    <!-- 2. 自包含，捆绑 .NET 运行时 -->
+    <SelfContained>true</SelfContained>
+    
+    <!-- 必须为自包含指定一个目标平台，例如 64位 Windows -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    
+    <!-- 3. 启用 ReadyToRun 优化启动速度 -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    
+  </PropertyGroup>
 
 </Project>

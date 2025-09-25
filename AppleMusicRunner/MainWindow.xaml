@@ -9,12 +9,38 @@
         Closing="MainWindow_Closing">
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <!-- NEW: Top control bar -->
+            <RowDefinition Height="Auto"/>
+            <!-- Log area -->
             <RowDefinition Height="*"/>
+            <!-- Status bar -->
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 日志显示区域 -->
-        <Grid Grid.Row="0">
+        <!-- ============================================= -->
+        <!-- MODIFIED: Top control and directory selection -->
+        <!-- ============================================= -->
+        <Border Grid.Row="0" BorderBrush="LightGray" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="请选择 AMD-V2-WSL1 项目的根目录:" FontWeight="Bold"/>
+                <TextBlock Text="这个目录应该包含 'wsl1', 'AppleMusicDecrypt', 和 'artists.txt' 文件。" FontStyle="Italic" Foreground="Gray" Margin="0,2,0,8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="DirectoryPathTextBox" Grid.Column="0" IsReadOnly="True" Text="请点击 '选择目录' 按钮..." VerticalContentAlignment="Center"/>
+                    <Button x:Name="SelectDirectoryButton" Grid.Column="1" Content="选择目录..." Width="120" Margin="10,0,10,0" Click="SelectDirectoryButton_Click"/>
+                    <!-- IsEnabled is initially false -->
+                    <Button x:Name="StartButton" Grid.Column="2" Content="开始处理" Width="120" IsEnabled="False" Click="StartButton_Click"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 日志显示区域 (Unchanged) -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="5"/>
@@ -24,8 +50,6 @@
             <!-- 左侧日志: WrapperManager -->
             <DockPanel Grid.Column="0">
                 <TextBlock DockPanel.Dock="Top" Text="WrapperManager Log" FontWeight="Bold" Margin="0,0,0,5"/>
-
-                <!-- NEW: Filter Controls -->
                 <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1" Padding="5" Margin="0,0,0,5">
                     <StackPanel>
                         <TextBlock Text="Filter by Level:"/>
@@ -37,11 +61,9 @@
                             <CheckBox x:Name="WrapperShowOther" Content="Other" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
                         </WrapPanel>
                         <TextBlock Text="Filter by Keyword:"/>
-                        <TextBox x:Name="WrapperKeywordFilter" TextChanged="Filter_Changed" Margin="0,5,0,0"/>
+                        <TextBox x:Name="WrapperKeywordFilter" TextChanged="Filter_Changed_TextBox" Margin="0,5,0,0"/>
                     </StackPanel>
                 </Border>
-
-                <!-- UPDATED: TextBox -> RichTextBox -->
                 <RichTextBox x:Name="WrapperLogRtb" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas">
                     <FlowDocument/>
                 </RichTextBox>
@@ -52,8 +74,6 @@
             <!-- 右侧日志: AMD-V2 -->
             <DockPanel Grid.Column="2">
                 <TextBlock DockPanel.Dock="Top" Text="AMD-V2 Log" FontWeight="Bold" Margin="0,0,0,5"/>
-
-                <!-- NEW: Filter Controls -->
                 <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="1" Padding="5" Margin="0,0,0,5">
                     <StackPanel>
                         <TextBlock Text="Filter by Level:"/>
@@ -65,25 +85,22 @@
                             <CheckBox x:Name="AmdShowOther" Content="Other" IsChecked="True" Margin="0,0,10,0" Click="Filter_Changed"/>
                         </WrapPanel>
                         <TextBlock Text="Filter by Keyword:"/>
-                        <TextBox x:Name="AmdKeywordFilter" TextChanged="Filter_Changed" Margin="0,5,0,0"/>
+                        <TextBox x:Name="AmdKeywordFilter" TextChanged="Filter_Changed_TextBox" Margin="0,5,0,0"/>
                     </StackPanel>
                 </Border>
-
-                <!-- UPDATED: TextBox -> RichTextBox -->
                 <RichTextBox x:Name="AmdLogRtb" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas">
                     <FlowDocument/>
                 </RichTextBox>
             </DockPanel>
         </Grid>
 
-        <!-- 底部控制和状态栏 -->
-        <DockPanel Grid.Row="1" Margin="0,10,0,0">
-            <Button x:Name="StartButton" Content="Start Processing" Width="150" Height="30" Click="StartButton_Click"/>
-            <StatusBar DockPanel.Dock="Bottom" Margin="10,0,0,0">
-                <StatusBarItem>
-                    <TextBlock x:Name="StatusTextBlock" Text="Ready."/>
-                </StatusBarItem>
-            </StatusBar>
-        </DockPanel>
+        <!-- ====================== -->
+        <!-- MODIFIED: Status bar -->
+        <!-- ====================== -->
+        <StatusBar Grid.Row="2" Margin="0,10,0,0">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusTextBlock" Text="Ready. Please select a working directory."/>
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>
