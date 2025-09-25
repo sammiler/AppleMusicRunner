@@ -1,0 +1,53 @@
+﻿<Window x:Class="AppleMusicProcessManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AppleMusicProcessManager"
+        mc:Ignorable="d"
+        Title="Apple Music Process Manager" Height="720" Width="1280"
+        Closing="MainWindow_Closing">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 日志显示区域 -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧日志: WrapperManager -->
+            <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="WrapperManager Log" FontWeight="Bold" Margin="0,0,0,5"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="WrapperLogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                </ScrollViewer>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+
+            <!-- 右侧日志: AMD-V2 -->
+            <DockPanel Grid.Column="2">
+                <TextBlock DockPanel.Dock="Top" Text="AMD-V2 Log" FontWeight="Bold" Margin="0,0,0,5"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="AmdLogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+
+        <!-- 底部控制和状态栏 -->
+        <DockPanel Grid.Row="1" Margin="0,10,0,0">
+            <Button x:Name="StartButton" Content="Start Processing" Width="150" Height="30" Click="StartButton_Click"/>
+            <StatusBar DockPanel.Dock="Bottom" Margin="10,0,0,0">
+                <StatusBarItem>
+                    <TextBlock x:Name="StatusTextBlock" Text="Ready."/>
+                </StatusBarItem>
+            </StatusBar>
+        </DockPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AppleMusicRunner": {
+      "commandName": "Project",
+      "workingDirectory": "D:\\dev\\AppleMusic"
+    }
+  }
+}
