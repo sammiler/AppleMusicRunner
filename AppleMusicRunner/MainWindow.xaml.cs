@@ -158,8 +158,8 @@ namespace AppleMusicProcessManager
 
                 if (success)
                 {
-                    UpdateStatus($"艺术家 '{artist}' 的任务已完成。等待 1 小时...");
-                    await Task.Delay(3600000, token);
+                    UpdateStatus($"艺术家 '{artist}' 的任务已完成。等待 1秒  ...");
+                    await Task.Delay(1000, token);
                     await File.WriteAllTextAsync(targetArtistsFile, string.Empty, token);
                     LogToWrapper($"已清空目标 artists.txt 为下一次运行做准备。");
                     LogToAmd($"准备处理下一位艺术家。");
