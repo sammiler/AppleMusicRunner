@@ -5,39 +5,26 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AppleMusicProcessManager"
         mc:Ignorable="d"
-        Title="Apple Music Process Manager" Height="720" Width="1280"
+        Title="Apple Music Process Manager (AMD-V2)" Height="720" Width="1280"
         Closing="MainWindow_Closing">
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <!-- NEW: Top control bar -->
             <RowDefinition Height="Auto"/>
-            <!-- Log area -->
             <RowDefinition Height="*"/>
-            <!-- Status bar -->
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- ============================================= -->
-        <!-- MODIFIED: Top control and directory selection -->
+        <!-- MODIFIED: Top control bar for environment variable -->
         <!-- ============================================= -->
         <Border Grid.Row="0" BorderBrush="LightGray" BorderThickness="1" Padding="10" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="请选择 AMD-V2-WSL1 项目的根目录:" FontWeight="Bold"/>
-                <TextBlock Text="这个目录应该包含 'wsl1', 'AppleMusicDecrypt', 和 'artists.txt' 文件。" FontStyle="Italic" Foreground="Gray" Margin="0,2,0,8"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBox x:Name="DirectoryPathTextBox" Grid.Column="0" IsReadOnly="True" Text="请点击 '选择目录' 按钮..." VerticalContentAlignment="Center"/>
-                    <Button x:Name="SelectDirectoryButton" Grid.Column="1" Content="选择目录..." Width="120" Margin="10,0,10,0" Click="SelectDirectoryButton_Click"/>
-                    <!-- IsEnabled is initially false -->
-                    <Button x:Name="StartButton" Grid.Column="2" Content="开始处理" Width="120" IsEnabled="False" Click="StartButton_Click"/>
-                    <Button x:Name="StopButton" Grid.Column="3" Content="终止" Width="80" IsEnabled="False" Margin="10,0,0,0" Background="#FFE81123"  Click="StopButton_Click"/>
-                </Grid>
+                <TextBlock Text="工作目录将从环境变量 'AMD-V2' 自动加载。" FontWeight="Bold"/>
+                <TextBlock x:Name="DirectoryPathTextBlock" Text="正在检查环境变量..." FontStyle="Italic" Foreground="Gray" Margin="0,2,0,8"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="StartButton" Content="开始处理" Width="120" IsEnabled="False" Click="StartButton_Click"/>
+                    <Button x:Name="StopButton" Content="终止" Width="80" IsEnabled="False" Margin="10,0,0,0" Background="#FFE81123"  Click="StopButton_Click"/>
+                </StackPanel>
             </StackPanel>
         </Border>
 
@@ -96,12 +83,10 @@
             </DockPanel>
         </Grid>
 
-        <!-- ====================== -->
-        <!-- MODIFIED: Status bar -->
-        <!-- ====================== -->
+        <!-- Status bar -->
         <StatusBar Grid.Row="2" Margin="0,10,0,0">
             <StatusBarItem>
-                <TextBlock x:Name="StatusTextBlock" Text="Ready. Please select a working directory."/>
+                <TextBlock x:Name="StatusTextBlock" Text="Initializing..."/>
             </StatusBarItem>
         </StatusBar>
     </Grid>
