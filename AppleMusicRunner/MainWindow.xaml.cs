@@ -121,6 +121,7 @@ namespace AppleMusicProcessManager
                 LogToWrapper("用户请求终止操作...");
                 LogToAmd("用户请求终止操作...");
                 _cancellationTokenSource.Cancel();
+                KillProcessesAndCleanupWSL();
             }
         }
 
@@ -171,6 +172,20 @@ namespace AppleMusicProcessManager
                     UpdateStatus($"艺术家 '{artist}' 的任务已完成。");
                     await File.WriteAllTextAsync(targetArtistsFile, string.Empty, token);
                 }
+
+                if (i < artists.Length - 1)
+                {
+                    UpdateStatus($"等待 30 秒后处理下一个艺术家...");
+                    try
+                    {
+                        await Task.Delay(30000, token); // 等待30秒
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // 如果在等待期间用户点击了终止，就跳出循环
+                        break;
+                    }
+                }
             }
         }
 
@@ -183,11 +198,18 @@ namespace AppleMusicProcessManager
             {
                 LogToWrapper("Wrapper-Manager 未运行，正在启动...");
                 var wrapperReadyTcs = new TaskCompletionSource<bool>();
+                string wrapperBatScript = Path.Combine(baseDirectory, "1. Run WrapperManager.bat");
+                if (!File.Exists(wrapperBatScript))
+                {
+                    MessageBox.Show("错误：找不到 '1. Run WrapperManager.bat", "文件未找到", MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    return false;
+                }
 
                 var wrapperStartInfo = new ProcessStartInfo
                 {
-                    FileName = Path.Combine(baseDirectory, "wsl1", "LxRunOffline.exe"),
-                    Arguments = "r -n deb-amd -c \"cd /root/wm && ./wrapper-manager -host 0.0.0.0 -port 8080 -debug\"",
+                    FileName = wrapperBatScript,
+                    WorkingDirectory = baseDirectory,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -207,7 +229,7 @@ namespace AppleMusicProcessManager
                 void HandleWrapperOutput(string data)
                 {
                     LogToWrapper(data);
-                    if (data.Contains("listening on", StringComparison.OrdinalIgnoreCase))
+                    if (data.Contains("Wrapper ready", StringComparison.OrdinalIgnoreCase))
                     {
                         wrapperReadyTcs.TrySetResult(true);
                     }
@@ -244,11 +266,18 @@ namespace AppleMusicProcessManager
 
             // --- 步骤 2: 启动 AMD-V2 Python 进程并使用无死锁的方式监控 ---
             bool success;
+            string amdBatScript = Path.Combine(baseDirectory, "2. Run AMD-V2.bat");
+            if (!File.Exists(amdBatScript))
+            {
+                MessageBox.Show("错误：找不到 '2. Run AMD-V2.bat' 启动脚本。", "文件未找到", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return false;
+            }
+
             var amdStartInfo = new ProcessStartInfo
             {
-                FileName = Path.Combine(baseDirectory, "wsl1", "LxRunOffline.exe"),
-                Arguments = "r -n deb-amd -c \"/root/.local/bin/poetry run python3 main.py\"",
-                WorkingDirectory = Path.Combine(baseDirectory, "AppleMusicDecrypt"),
+                FileName = amdBatScript,
+                WorkingDirectory = baseDirectory,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -264,9 +293,13 @@ namespace AppleMusicProcessManager
                 void HandleAmdOutput(string data)
                 {
                     LogToAmd(data);
-                    if (data.Contains("All tasks completed.", StringComparison.OrdinalIgnoreCase))
+                    if (data.Contains("INFO - Exit.", StringComparison.OrdinalIgnoreCase))
                     {
                         outputTcs.TrySetResult(true);
+                    }
+                    else if (data.Contains("ERROR - Critical error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outputTcs.TrySetResult(false);
                     }
                 }
 
