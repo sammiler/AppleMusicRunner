@@ -175,10 +175,10 @@ namespace AppleMusicProcessManager
 
                 if (i < artists.Length - 1)
                 {
-                    UpdateStatus($"等待 30 秒后处理下一个艺术家...");
+                    UpdateStatus($"等待 10 秒后处理下一个艺术家...");
                     try
                     {
-                        await Task.Delay(30000, token); // 等待30秒
+                        await Task.Delay(10000, token);
                     }
                     catch (TaskCanceledException)
                     {
