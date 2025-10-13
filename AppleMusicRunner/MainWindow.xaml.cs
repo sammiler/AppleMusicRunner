@@ -89,7 +89,8 @@ namespace AppleMusicProcessManager
             StartButton.IsEnabled = false;
             StopButton.IsEnabled = true;
             StartButton.Content = "处理中...";
-
+            ClearAMDLogs();
+            ClearWrapperLogs();
             _totalAlbumsScrapedThisSession = 0;
             _cancellationTokenSource = new CancellationTokenSource();
 
@@ -165,7 +166,7 @@ namespace AppleMusicProcessManager
 
                     string artistId = artistsToProcess[i];
 
-                    ClearLogs();
+                    ClearAMDLogs();
                     UpdateStatus($"正在处理第 {i + 1}/{artistsToProcess.Count} 位艺术家: {artistId}");
 
                     await File.WriteAllTextAsync(targetArtistsFile, artistId, token);
@@ -200,7 +201,11 @@ namespace AppleMusicProcessManager
                     {
                         LogToWrapper("[会话停止] 累计抓取专辑数已超过500张上限！", Brushes.Red);
                         UpdateStatus("专辑总数超过500上限，会话已停止。");
-                        sessionFailed = true; // 达到上限也算会话结束
+                        if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+                        {
+                            _cancellationTokenSource.Cancel();
+                        }
+
                         break;
                     }
 
@@ -646,14 +651,26 @@ namespace AppleMusicProcessManager
             AmdShowWarning.IsChecked == true, AmdShowError.IsChecked == true, AmdShowDebug.IsChecked == true,
             AmdShowOther.IsChecked == true, AmdKeywordFilter.Text);
 
-        private void ClearLogs()
+        private void ClearAMDLogs()
         {
-            _wrapperLogEntries.Clear();
             _amdLogEntries.Clear();
             if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
             try
             {
                 Dispatcher.BeginInvoke(() => { AmdLogRtb.Document.Blocks.Clear(); });
+            }
+            catch (TaskCanceledException)
+            {
+            }
+        }
+
+        private void ClearWrapperLogs()
+        {
+            _wrapperLogEntries.Clear();
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+            try
+            {
+                Dispatcher.BeginInvoke(() => { WrapperLogRtb.Document.Blocks.Clear(); });
             }
             catch (TaskCanceledException)
             {
