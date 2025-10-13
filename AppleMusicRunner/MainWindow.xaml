@@ -20,7 +20,7 @@
         <Border Grid.Row="0" BorderBrush="LightGray" BorderThickness="1" Padding="10" Margin="0,0,0,10">
             <StackPanel>
                 <TextBlock Text="工作目录将从环境变量 'AMD-V2' 自动加载。" FontWeight="Bold"/>
-                <TextBlock x:Name="DirectoryPathTextBlock" Text="正在检查环境变量..." FontStyle="Italic" Foreground="Gray" Margin="0,2,0,8"/>
+                <TextBlock x:Name="InfoPathTextBlock" Text="正在检查环境变量..." FontStyle="Italic" Foreground="Gray" Margin="0,2,0,8"/>
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="StartButton" Content="开始处理" Width="120" IsEnabled="False" Click="StartButton_Click"/>
                     <Button x:Name="StopButton" Content="终止" Width="80" IsEnabled="False" Margin="10,0,0,0" Background="#FFE81123"  Click="StopButton_Click"/>

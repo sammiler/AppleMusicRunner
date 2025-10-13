@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Stub.System.Data.SQLite.Core.NetStandard" Version="1.0.119" />
     <PackageReference Include="System.Management" Version="9.0.9" />
   </ItemGroup>
 
